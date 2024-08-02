@@ -1,58 +1,77 @@
-<?php
-#define("ENVIRONMENT", "production");
-define("ENVIRONMENT", "development");
-define("DEBUG", "true");
+// config/database.php
 
-if (ENVIRONMENT == "development") {
-	define("BASE_URL", "http://localhost/dev/php-tests/mvc/catalog-mvc/");
-	define("DB_NAME", "catalog_db");
-	define("DB_HOST", "127.0.0.1");
-	define("DB_USER", "root");
-	define("DB_PASS", "");
-	define("DB_TYPE", "mysql");
-}
-else {
-	define("BASE_URL", "https://ivanfilho21.000webhostapp.com/mvc/catalog-mvc/");
-	define("DB_NAME", "id3272628_tasks");
-	define("DB_HOST", "localhost");
-	define("DB_USER", "id3272628_ivanfilho21");
-	define("DB_PASS", "taskdb");
-	define("DB_TYPE", "mysql");
-}
+return [
+    'default' => env('DB_CONNECTION', 'mysql'),
 
-define("ANNOUNCEMENT_PICTURES_DIR", "assets/images/announcements");
+    'connections' => [
+        'mysql' => [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'database' => env('DB_DATABASE', 'catalog_db'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+    ],
+];
 
-global $database;
+// app/Services/UserSessionService.php
 
-$database = new Database();
+namespace App\Services;
 
-function checkUserPermissionToPage()
+use Illuminate\Support\Facades\Session;
+
+class UserSessionService
 {
-	if (empty (getUserSession())) {
-		?>
-		<input id="data" type="hidden" data-base-url="<?php echo BASE_URL; ?>">
-		<script>
-			var baseUrl = document.getElementById("data").getAttribute("data-base-url");
-			window.location.href = baseUrl;
-		</script>
-		<?php
-	}
+    const USER_SESSION_KEY = 'user-session-id';
+
+    public function getUserSession()
+    {
+        return Session::get(self::USER_SESSION_KEY, '');
+    }
+
+    public function setUserSession($value)
+    {
+        Session::put(self::USER_SESSION_KEY, $value);
+    }
+
+    public function unsetUserSession()
+    {
+        Session::forget(self::USER_SESSION_KEY);
+    }
+
+    public function checkUserPermissionToPage()
+    {
+        if ($this->getUserSession() === '') {
+            return redirect(config('app.url')); // or redirect()->route('your.route')
+        }
+    }
 }
 
-function getUserSession()
-{
-	if (isset($_SESSION["user-session-id"])) {
-		return $_SESSION["user-session-id"];
-	}
-	return "";
-}
+// app/Http/Controllers/YourController.php
 
-function setUserSession($value)
-{
-	$_SESSION["user-session-id"] = $value;
-}
+namespace App\Http\Controllers;
 
-function unsetUserSession()
+use App\Services\UserSessionService;
+
+class YourController extends Controller
 {
-	unset($_SESSION["user-session-id"]);
+    protected $userSessionService;
+
+    public function __construct(UserSessionService $userSessionService)
+    {
+        $this->userSessionService = $userSessionService;
+    }
+
+    public function index()
+    {
+        $this->userSessionService->checkUserPermissionToPage();
+
+        // Your code logic here
+        return view('your_view');
+    }
 }
